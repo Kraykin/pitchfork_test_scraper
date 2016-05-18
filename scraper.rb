@@ -72,8 +72,7 @@ pages_to_load.times do |n|
     )
     VALUES ( ?, ?, ?, ?, ?, ?, ? )', [artist, album, label, year, reviewer, review_date, score]
 
-    sleep(1.0 + rand)
+    sleep(3.0 + rand * 2)
   end
 
-  sleep(1.0 + rand)
 end
