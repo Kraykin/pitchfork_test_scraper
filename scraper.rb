@@ -26,38 +26,54 @@
 
 require 'nokogiri'
 require 'open-uri'
-require 'scraperwiki'
+require 'sqlite3'
 
-ScraperWiki.config = { db: 'data.sqlite', default_table_name: 'data' }
+db = SQLite3::Database.new 'data.sqlite'
+db.results_as_hash = true
+db.execute 'CREATE  TABLE IF NOT EXISTS Data
+    (
+      "id" INTEGER PRIMARY KEY  AUTOINCREMENT  UNIQUE,
+      artist TEXT,
+      album TEXT,
+      label TEXT,
+      year TEXT,
+      reviewer TEXT,
+      review_date DATE,
+      score TEXT
+    )'
 
 base_url = "http://pitchfork.com"
-page = Nokogiri::HTML(open(base_url + "/reviews/albums"))
+pages_to_load = 10
 
-review_links = page.css(".album-link").map {|a| a['href']}
+pages_to_load.times do |n| 
+  pages = Nokogiri::HTML(open(base_url + "/reviews/albums/?page=" + n.to_s))
+  review_links = pages.css(".album-link").map {|a| a['href']}
+  
+  reviews = review_links.map do |link|
+    review = Nokogiri::HTML(open(base_url + link))
 
-reviews = review_links.map do |link|
-  review = Nokogiri::HTML(open(base_url + link))
-  
-  artist = review.css(".artist-list a").text
-  album = review.css(".review-title").text
-  label = review.css(".label-list li").text
-  year = review.css(".year span+ span").text
-  reviewer = review.css(".display-name").text
-  review_date = Date.parse(review.css(".pub-date")[0]['title'])
-  score = review.css(".score").text
-  
-  {
-    artist: artist,
-    album: album,
-    label: label,
-    year: year,
-    reviewer: reviewer,
-    review_date: review_date,
-    score: score
-  }
-  
-end
+    artist = review.css(".artist-list a").text
+    album = review.css(".review-title").text
+    label = review.css(".label-list li").text
+    year = review.css(".year span+ span").text
+    reviewer = review.css(".display-name").text
+    review_date = Date.parse(review.css(".pub-date")[0]['title']).to_s
+    score = review.css(".score").text
 
-reviews.each do |review|
-  ScraperWiki.save_sqlite([:artist, :album], review)
+    db.execute 'INSERT INTO Data
+    (
+      artist,
+      album,
+      label,
+      year,
+      reviewer,
+      review_date,
+      score
+    )
+    VALUES ( ?, ?, ?, ?, ?, ?, ? )', [artist, album, label, year, reviewer, review_date, score]
+
+    sleep(1.0 + rand)
+  end
+
+  sleep(1.0 + rand)
 end
